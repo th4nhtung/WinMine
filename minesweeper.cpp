@@ -233,7 +233,7 @@ int flip (char _board[N_ROWS][N_COLUMNS], char game_board[N_ROWS][N_COLUMNS], in
 }
 
 // Check which type of cell and which button has been clicked and act accordingly
-void play (char game_board[N_ROWS][N_COLUMNS], char _board[N_ROWS][N_COLUMNS], int* free_cells,
+void play (char _board[N_ROWS][N_COLUMNS], char game_board[N_ROWS][N_COLUMNS], int* free_cells,
 		   bool* game_over, bool mouseL, bool mouseR, int cell_y, int cell_x) {
 	// If the left mouse button has been clicked
 	if (mouseL) {
@@ -315,7 +315,7 @@ int main (int argc, char** argv) {
 
 				case PLAYING_GAME:
 					if (free_cells > N_MINES && !game_over) {
-						play(game_board, _board, &free_cells, &game_over,
+						play(_board, game_board, &free_cells, &game_over,
 							 mouseL, mouseR, cell_y, cell_x);
 						drawBoard(game_board);
 					}
