@@ -12,4 +12,9 @@ Release version in *bin\Release* directory, you can run it directly and play ^^
 ## How to build
 
 Simply download and build project using [Code::Blocks](http://www.codeblocks.org/) :)  
-**Note: check the SDL directory in Project -> Build options -> Search directories**
+**Note: check the SDL directory in Project -> Build options -> Search directories , Build scripts**
+
+## Documentation
+
+* [SDL Tutorial](http://lazyfoo.net/tutorials/SDL/index.php)
+* [The C++ Resource Network](http://www.cplusplus.com/)
