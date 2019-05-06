@@ -1,14 +1,14 @@
 /*
  * +-----------------------------------------------+
  * | Project:	  Minesweeper					   |
- * | File:		  minesweeper.cpp				   |
+ * | File:		  winmine.cpp					   |
  * | Author:	  Pham Thanh Tung				   |
  * | Student ID:  17020042						   |
  * | Class:		  QH - 2017 - I / CQ - C - A - C   |
  * +-----------------------------------------------+
  */
 
-#include "minesweeper.hpp"
+#include "winmine.hpp"
 #include "random.hpp"
 #include <iostream>
 #include <sstream>
@@ -162,7 +162,7 @@ void putMines (int cell_x, int cell_y, char _board[N_ROWS][N_COLUMNS]) {
 
 // Return the number of mines around a cell coordinates (row, column)
 char countMines (char _board[N_ROWS][N_COLUMNS], int row, int column) {
-	char mines = 0;					// Count the number of mines around the square
+	char mines = 0;	// Count the number of mines around the square
 
 	// The boundaries between the mines around the cell
 	int max_row = row + 1; 			// Row under the cell
@@ -186,6 +186,32 @@ char countMines (char _board[N_ROWS][N_COLUMNS], int row, int column) {
 	return mines;
 }
 
+// Return the number of flagged cells around a cell coordinates (row, column)
+char countFlags (char _board[N_ROWS][N_COLUMNS], int row, int column) {
+	char flags = 0;	// Count the number of flags around the square
+
+	// The boundaries between the flags around the cell
+	int max_row = row + 1; 			// Row under the cell
+	int min_row = row - 1;			// Row above the cell
+	int min_column = column - 1;	// Column to the left of the cell
+	int max_column = column + 1;	// Column to the right of the cell
+
+	// If the cell is on the edges of the board, then the limits must be modified
+	// so as not to go off the board
+	if (row == 0) min_row = 0;
+	else if (row == N_ROWS - 1) max_row = N_ROWS - 1;
+	if (column == 0) min_column = 0;
+	else if (column == N_COLUMNS - 1) max_column = N_COLUMNS - 1;
+
+	// Count flags around this cell
+	FORU(i, min_row, max_row)
+		FORU(j, min_column, max_column)
+			flags += (_board[i][j] == CELL_FLAGGED);
+
+	// Return the number of flags around the cell
+	return flags;
+}
+
 // In each cell of the board where there is no mine, put the number of mines around it
 void putNumber (char _board[N_ROWS][N_COLUMNS]) {
 	REP(i, N_ROWS)
@@ -195,9 +221,19 @@ void putNumber (char _board[N_ROWS][N_COLUMNS]) {
 }
 
 // Flip the cells that are necessary after clicking on a box and return the number of flipped cells
-int flip (char _board[N_ROWS][N_COLUMNS], char game_board[N_ROWS][N_COLUMNS], int row, int column) {
-	if (game_board[row][column] != CELL_FREE)
-		return 0;	// If the cell was already flipped, no cells are flipped
+int flip (char _board[N_ROWS][N_COLUMNS], char game_board[N_ROWS][N_COLUMNS], int row, int column, bool* exploded = NULL) {
+	if (game_board[row][column] == CELL_FREE && _board[row][column] == CELL_MINE) {
+		game_board[row][column] = CELL_EXPLODED;
+		if (exploded != NULL)
+			*exploded = true;
+	}
+	if (game_board[row][column] != CELL_FREE) {
+		if (CELL_ONE <= game_board[row][column] && game_board[row][column] <= CELL_EIGHT
+			&& countFlags(game_board, row, column) == game_board[row][column] - CELL_ZERO)
+			return flip_all_adjacent(_board, game_board, row, column, exploded);
+		else
+			return 0;	// If the cell was already flipped, no cells are flipped
+	}
 	else {
 		// The cell on the game's board is flipped, then show what was hidden in it
 		game_board[row][column] = _board[row][column];
@@ -225,11 +261,44 @@ int flip (char _board[N_ROWS][N_COLUMNS], char game_board[N_ROWS][N_COLUMNS], in
 			FORU(i, min_row, max_row)
 				FORU(j, min_column, max_column)
 					if (i != row || j != column)
-						flipped_cells += flip(_board, game_board, i, j);
+						flipped_cells += flip(_board, game_board, i, j, exploded);
 
 			return flipped_cells;	// If the cell was CELL_ZERO, more than one cell has been flipped
 		}
 	}
+}
+
+// Flip all adjacent cells if all flags are put around it is the same as the number inside this cell
+int flip_all_adjacent (char _board[N_ROWS][N_COLUMNS], char game_board[N_ROWS][N_COLUMNS],
+						int row, int column, bool* exploded = NULL) {
+	if (game_board[row][column] == CELL_FREE && _board[row][column] == CELL_MINE) {
+		game_board[row][column] = CELL_EXPLODED;
+		if (exploded != NULL)
+			*exploded = true;
+	}
+	// Number of flipped cells
+	int flipped_cells = 0;
+
+	// The boundaries between the mines around the cell
+	int max_row = row + 1; 			// Row under the cell
+	int min_row = row - 1;			// Row above the cell
+	int min_column = column - 1;	// Column to the left of the cell
+	int max_column = column + 1;	// Column to the right of the cell
+
+	// If the cell is on the edges of the board, then the limits must be modified
+	// so as not to go off the board
+	if (row == 0) min_row = 0;
+	else if (row == N_ROWS - 1) max_row = N_ROWS - 1;
+	if (column == 0) min_column = 0;
+	else if (column == N_COLUMNS - 1) max_column = N_COLUMNS - 1;
+
+	// Recursive flip all cells around it
+	FORU(i, min_row, max_row)
+		FORU(j, min_column, max_column)
+			if ((i != row || j != column) && game_board[i][j] == CELL_FREE)
+				flipped_cells += flip(_board, game_board, i, j, exploded);
+
+	return flipped_cells;
 }
 
 // Check which type of cell and which button has been clicked and act accordingly
@@ -237,12 +306,11 @@ void play (char _board[N_ROWS][N_COLUMNS], char game_board[N_ROWS][N_COLUMNS], i
 		   bool* game_over, bool mouseL, bool mouseR, int cell_y, int cell_x) {
 	// If the left mouse button has been clicked
 	if (mouseL) {
-		if (game_board[cell_y][cell_x] == CELL_FREE && _board[cell_y][cell_x] == CELL_MINE) {
-			game_board[cell_y][cell_x] = CELL_EXPLODED;
+		bool* exploded = new bool;
+		*exploded = false;
+		*free_cells -= flip(_board, game_board, cell_y, cell_x, exploded);
+		if (*exploded)
 			*game_over = true;	// You lost because you flipped a mine!
-		}
-		else
-			*free_cells -= flip(_board, game_board, cell_y, cell_x);
 	}
 
 	// If the right mouse button has been clicked

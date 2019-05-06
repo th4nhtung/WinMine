@@ -1,15 +1,15 @@
 /*
  * +-----------------------------------------------+
  * | Project:	  Minesweeper					   |
- * | File:		  minesweeper.hpp				   |
+ * | File:		  winmine.hpp					   |
  * | Author:	  Pham Thanh Tung				   |
  * | Student ID:  17020042						   |
  * | Class:		  QH - 2017 - I / CQ - C - A - C   |
  * +-----------------------------------------------+
  */
 
-#ifndef __MINESWEEPER_HEADER__
-#define __MINESWEEPER_HEADER__
+#ifndef WINMINE_HPP_INCLUDED
+#define WINMINE_HPP_INCLUDED
 
 #include <string>
 #include <SDL2/SDL.h>
@@ -70,28 +70,34 @@ void loadImages (void);
 void freeSDL (void);
 
 // Initialize the two boards
-void initBoard (char**, char**);
+void initBoard (char[N_ROWS][N_COLUMNS], char[N_ROWS][N_COLUMNS]);
 
 // Displays the player's board
-void drawBoard (char**);
+void drawBoard (char[N_ROWS][N_COLUMNS]);
 
 // Handle the events that are queued to check if the X in the window has been clicked
 // or if a mouse button has been clicked
 void handleEvents (bool*, bool*, bool*, int*, int*);
 
 // Put mines on the hidden board by distributing them randomly
-void putMines (int, int, char**);
+void putMines (int, int, char[N_ROWS][N_COLUMNS]);
 
 // Return the number of mines around a cell coordinates (row, column)
-char countMines (char**, int, int);
+char countMines (char[N_ROWS][N_COLUMNS], int, int);
+
+// Return the number of flagged cells around a cell coordinates (row, column)
+char countFlags (char[N_ROWS][N_COLUMNS], int, int);
 
 // In each cell of the board where there is no mine, put the number of mines around it
-void putNumber (char**);
+void putNumber (char[N_ROWS][N_COLUMNS]);
 
 // Flip the cells that are necessary after clicking on a box and return the number of flipped cells
-int flip (char**, char**, int, int);
+int flip (char[N_ROWS][N_COLUMNS], char[N_ROWS][N_COLUMNS], int, int, bool*);
+
+// Flip all adjacent cells if all flags are put around it is the same as the number inside this cell
+int flip_all_adjacent (char[N_ROWS][N_COLUMNS], char[N_ROWS][N_COLUMNS], int, int, bool*);
 
 // Check which type of cell and which button has been clicked and act accordingly
-void play (char**, char**, int*, bool*, bool, bool, int, int);
+void play (char[N_ROWS][N_COLUMNS], char[N_ROWS][N_COLUMNS], int*, bool*, bool, bool, int, int);
 
-#endif // __MINESWEEPER_HEADER__
+#endif // WINMINE_HPP_INCLUDED
