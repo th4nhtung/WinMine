@@ -47,10 +47,10 @@
 			<Add option="-lmingw32 -lSDL2main -lSDL2 -lSDL2_image" />
 			<Add directory="C:/Users/Admin/x86_64-w64-mingw32/lib" />
 		</Linker>
-		<Unit filename="minesweeper.cpp" />
-		<Unit filename="minesweeper.hpp" />
 		<Unit filename="random.cpp" />
 		<Unit filename="random.hpp" />
+		<Unit filename="winmine.cpp" />
+		<Unit filename="winmine.hpp" />
 		<Extensions>
 			<code_completion />
 			<envvars />
