@@ -91,7 +91,7 @@ char countFlags (char[N_ROWS][N_COLUMNS], int, int);
 // In each cell of the board where there is no mine, put the number of mines around it
 void putNumber (char[N_ROWS][N_COLUMNS]);
 
-// Flip the cells that are necessary after clicking on a box and return the number of flipped cells
+// Flip the cells that are necessary after clicking on a cell and return the number of flipped cells
 int flip (char[N_ROWS][N_COLUMNS], char[N_ROWS][N_COLUMNS], int, int, bool*);
 
 // Flip all adjacent cells if all flags are put around it is the same as the number inside this cell

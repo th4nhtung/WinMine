@@ -701,14 +701,14 @@
 1557110977 source:c:\users\admin\documents\winmine\random.cpp
 	"random.hpp"
 
-1557110977 source:c:\users\admin\documents\winmine\winmine.cpp
+1557715641 source:c:\users\admin\documents\winmine\winmine.cpp
 	"winmine.hpp"
 	"random.hpp"
 	<iostream>
 	<sstream>
 	<SDL2/SDL.h>
 
-1557110977 c:\users\admin\documents\winmine\winmine.hpp
+1557713441 c:\users\admin\documents\winmine\winmine.hpp
 	<string>
 	<SDL2/SDL.h>
 

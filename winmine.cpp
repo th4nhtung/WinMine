@@ -109,7 +109,7 @@ void initBoard (char _board[N_ROWS][N_COLUMNS], char game_board[N_ROWS][N_COLUMN
 
 // Displays the game's board
 void drawBoard (char game_board[N_ROWS][N_COLUMNS]) {
-	SDL_Rect rect; // Position of the surface on which the box will be drawn
+	SDL_Rect rect; // Position of the surface on which the cell will be drawn
 
 	rect.w = CELL_SIZE;
 	rect.h = CELL_SIZE;
@@ -150,7 +150,7 @@ void putMines (int cell_x, int cell_y, char _board[N_ROWS][N_COLUMNS]) {
 		rd_row = rnd->get(0, N_ROWS - 1);
 		rd_column = rnd->get(0, N_COLUMNS - 1);
 
-		// If a mine had not already been set in the box, nor is it the first space the player has uncovered
+		// If a mine had not already been set in the cell, nor is it the first space the player has uncovered
 		// (cell_x, cell_y), then a mine is placed in that square
 		if (_board[rd_row][rd_column] != CELL_MINE && (rd_row != cell_y || rd_column != cell_x)) {
 			_board[rd_row][rd_column] = CELL_MINE;
@@ -220,7 +220,7 @@ void putNumber (char _board[N_ROWS][N_COLUMNS]) {
 				_board[i][j] = countMines(_board, i, j) + CELL_ZERO;
 }
 
-// Flip the cells that are necessary after clicking on a box and return the number of flipped cells
+// Flip the cells that are necessary after clicking on a cell and return the number of flipped cells
 int flip (char _board[N_ROWS][N_COLUMNS], char game_board[N_ROWS][N_COLUMNS], int row, int column, bool* exploded = NULL) {
 	if (game_board[row][column] == CELL_FREE && _board[row][column] == CELL_MINE) {
 		game_board[row][column] = CELL_EXPLODED;
