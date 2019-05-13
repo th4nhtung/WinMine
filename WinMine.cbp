@@ -32,6 +32,9 @@
 				<ExtraCommands>
 					<Add after='cmd /c copy &quot;C:\Users\Admin\x86_64-w64-mingw32\bin\SDL2.dll&quot; &quot;$(TARGET_OUTPUT_DIR)&quot;' />
 					<Add after='cmd /c copy &quot;C:\Users\Admin\x86_64-w64-mingw32\bin\SDL2_image.dll&quot; &quot;$(TARGET_OUTPUT_DIR)&quot;' />
+					<Add after='cmd /c copy &quot;C:\Users\Admin\x86_64-w64-mingw32\bin\SDL2_ttf.dll&quot; &quot;$(TARGET_OUTPUT_DIR)&quot;' />
+					<Add after='cmd /c copy &quot;C:\Users\Admin\x86_64-w64-mingw32\bin\libfreetype-6.dll&quot; &quot;$(TARGET_OUTPUT_DIR)&quot;' />
+					<Add after='cmd /c copy &quot;C:\Users\Admin\x86_64-w64-mingw32\bin\zlib1.dll&quot; &quot;$(TARGET_OUTPUT_DIR)&quot;' />
 					<Add after='cmd /c xcopy &quot;$(PROJECT_DIR)\res&quot; &quot;$(TARGET_OUTPUT_DIR)\res&quot; /s /e /y /i' />
 				</ExtraCommands>
 			</Target>
@@ -44,10 +47,9 @@
 			<Add directory="C:/Users/Admin/x86_64-w64-mingw32/include" />
 		</Compiler>
 		<Linker>
-			<Add option="-lmingw32 -lSDL2main -lSDL2 -lSDL2_image" />
+			<Add option="-lmingw32 -lSDL2main -lSDL2 -lSDL2_image -lSDL2_ttf" />
 			<Add directory="C:/Users/Admin/x86_64-w64-mingw32/lib" />
 		</Linker>
-		<Unit filename="random.cpp" />
 		<Unit filename="random.hpp" />
 		<Unit filename="winmine.cpp" />
 		<Unit filename="winmine.hpp" />
@@ -55,6 +57,15 @@
 			<code_completion />
 			<envvars />
 			<debugger />
+			<DoxyBlocks>
+				<comment_style block="0" line="0" />
+				<doxyfile_project />
+				<doxyfile_build />
+				<doxyfile_warnings />
+				<doxyfile_output />
+				<doxyfile_dot />
+				<general />
+			</DoxyBlocks>
 		</Extensions>
 	</Project>
 </CodeBlocks_project_file>

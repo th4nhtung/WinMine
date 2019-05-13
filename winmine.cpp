@@ -1,10 +1,9 @@
 /*
  * +-----------------------------------------------+
- * | Project:	  Minesweeper					   |
- * | File:		  winmine.cpp					   |
- * | Author:	  Pham Thanh Tung				   |
- * | Student ID:  17020042						   |
- * | Class:		  QH - 2017 - I / CQ - C - A - C   |
+ * | Project:     Minesweeper                      |
+ * | Author:      Pham Thanh Tung                  |
+ * | Student ID:  17020042                         |
+ * | Class:       QH - 2017 - I / CQ - C - A - C   |
  * +-----------------------------------------------+
  */
 
@@ -12,345 +11,328 @@
 #include "random.hpp"
 #include <iostream>
 #include <sstream>
-#include <SDL2/SDL.h>
+#include <utility>
+#include <vector>
 
 // Main window of game
 SDL_Window* window = NULL;
 
 // Surface of the window
-SDL_Surface* window_surface = NULL;
+SDL_Surface* layer = NULL;
 
 // Window icon
 SDL_Surface* window_icon = NULL;
 
-// Surface for each of the images
+// Surface for resources
 SDL_Surface* resources[N_RES];
 
 // Events of SDL
 SDL_Event events;
 
+// Check in-game event
+bool mouseL, mouseR, exploded, quit;
+
+// Mouse position
+int mX, mY;
+
+// Time of game
+clock_t start_time, end_time;
+
 // Random distributor
 Random* rnd = new Random();
 
-// Function to put error
-void puterr (std::string err) {
-	std::cout << err << std::endl;
-}
-
-// Initialize SDL and create window for game
+// Initialize SDL
 void initSDL (void) {
 	if (SDL_Init(SDL_INIT_VIDEO) < 0)
-		puterr(SDL_GetError());
+		std::cerr << "SDL Error: " << SDL_GetError() << std::endl;
 	else {
-		window = SDL_CreateWindow(GAME_TITLE, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
-								  SCREEN_WIDTH, SCREEN_HEIGHT, SDL_WINDOW_SHOWN);
+		window = SDL_CreateWindow(TITLE, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, LAYER_WIDTH, LAYER_HEIGHT, SDL_WINDOW_SHOWN);
 		if (window == NULL)
-			puterr(SDL_GetError());
+			std::cerr << "SDL Error: " << SDL_GetError() << std::endl;
 		else
-			window_surface = SDL_GetWindowSurface(window);
+			layer = SDL_GetWindowSurface(window);
 	}
 }
 
-// Load the image of the specified path and optimize the surface
-// so that the subsequent blits are faster
+// Load an image
 SDL_Surface* getResource (int id) {
 	std::stringstream ss;
 	ss << id;
 	const char* file = ("res/" + (id < 0 ? "icon" : ss.str()) + ".bmp").c_str();
 
-	SDL_Surface* loaded_surface = SDL_LoadBMP(file);
-	SDL_Surface* optimized_surface = NULL;
+	SDL_Surface* tmp_srf = SDL_LoadBMP(file);
+	SDL_Surface* opt_srf = NULL;
 
-	if (loaded_surface == NULL) {
-		puterr(SDL_GetError());
+	if (tmp_srf == NULL) {
+		std::cerr << "SDL Error: " << SDL_GetError() << std::endl;
 	}
 	else {
-		optimized_surface = SDL_ConvertSurface(loaded_surface, window_surface->format, 0);
-		if (optimized_surface == NULL)
-			puterr(SDL_GetError());
+		opt_srf = SDL_ConvertSurface(tmp_srf, layer->format, 0);
+		if (opt_srf == NULL)
+			std::cerr << "SDL Error: " << SDL_GetError() << std::endl;
 
-		// The surface is released without optimizing since we will not need it again
-		SDL_FreeSurface(loaded_surface);
+		SDL_FreeSurface(tmp_srf);
 	}
 
-	return optimized_surface;
+	return opt_srf;
 }
 
 // Load all necessary images for game
 void loadImages (void) {
+	window_icon = getResource(-1);
+
 	REP(i, N_RES)
 		resources[i] = getResource(i);
-	window_icon = getResource(-1);
 }
 
 // Free memory of SDL
 void freeSDL (void) {
-	// Free all surfaces, except the window_surface
 	REP(i, N_RES) {
 		SDL_FreeSurface(resources[i]);
 		resources[i] = NULL;
 	}
 
-	// Free the window and surface_window
 	SDL_DestroyWindow(window);
 	window = NULL;
 
 	SDL_Quit();
 }
 
-// Initialize the two boards
-void initBoard (char _board[N_ROWS][N_COLUMNS], char game_board[N_ROWS][N_COLUMNS]) {
-	REP(i, N_ROWS)
-		REP(j, N_COLUMNS) {
-			_board[i][j] = CELL_ZERO;
-			game_board[i][j] = CELL_FREE;
-		}
-}
+// Draw board to layer
+void drawBoard (char board[N_ROWS][N_COLUMNS]) {
+	SDL_Rect rect; // Position to draw cell
 
-// Displays the game's board
-void drawBoard (char game_board[N_ROWS][N_COLUMNS]) {
-	SDL_Rect rect; // Position of the surface on which the cell will be drawn
-
-	rect.w = CELL_SIZE;
-	rect.h = CELL_SIZE;
+	rect.w = rect.h = CELL_SIZE;
 
 	REP(i, N_ROWS)
 		REP(j, N_COLUMNS) {
 			rect.x = j * CELL_SIZE;
 			rect.y = i * CELL_SIZE;
-			SDL_BlitSurface(resources[game_board[i][j]], NULL, window_surface, &rect);
+			SDL_BlitSurface(resources[(int)board[i][j]], NULL, layer, &rect);
 		}
 
 	SDL_UpdateWindowSurface(window);
 }
 
-// Handle the events that are queued to check if the X in the window has been clicked
-// or if a mouse button has been clicked
-void handleEvents (bool* quit, bool* mouseL, bool* mouseR, int* mx, int* my) {
+// Catch in-game events
+void catchEvents (void) {
 	while (SDL_PollEvent(&events) != 0)
-		if (events.type == SDL_QUIT)
-			*quit = true; // The X in the window has been pressed to exit the game
-		else if (events.type == SDL_MOUSEBUTTONDOWN) {
-			SDL_GetMouseState(mx, my);
-			if (events.button.button == SDL_BUTTON_LEFT)
-				*mouseL = true; // The left mouse button has been clicked
-			else if (events.button.button == SDL_BUTTON_RIGHT)
-				*mouseR = true; // The right mouse button has been clicked
+		if (events.type == SDL_QUIT) // The X in the window has been clicked
+			quit = true;
+		else if (events.type == SDL_MOUSEBUTTONDOWN) { // A mouse button has been clicked
+			SDL_GetMouseState(&mX, &mY);
+			if (events.button.button == SDL_BUTTON_LEFT) // Left mouse button has been clicked
+				mouseL = true;
+			else if (events.button.button == SDL_BUTTON_RIGHT) // Right mouse button has been clicked
+				mouseR = true;
 		}
 }
 
-// Put mines on the hidden board by distributing them randomly
-void putMines (int cell_x, int cell_y, char _board[N_ROWS][N_COLUMNS]) {
-	int mines_left = N_MINES;	// Number of missing mines to be placed on the board
-	int rd_row;					// Row of the cell where the mine is placed
-	int rd_column;				// Column of the cell where the mine is placed
-
-	do {
-		// Randomize a cell
-		rd_row = rnd->get(0, N_ROWS - 1);
-		rd_column = rnd->get(0, N_COLUMNS - 1);
-
-		// If a mine had not already been set in the cell, nor is it the first space the player has uncovered
-		// (cell_x, cell_y), then a mine is placed in that square
-		if (_board[rd_row][rd_column] != CELL_MINE && (rd_row != cell_y || rd_column != cell_x)) {
-			_board[rd_row][rd_column] = CELL_MINE;
-			--mines_left;
-		}
-	}
-	while (mines_left > 0);
+// Check if a value is number
+bool isNumber (char value) {
+	return CELL_ZERO <= value && value <= CELL_EIGHT;
 }
 
-// Return the number of mines around a cell coordinates (row, column)
-char countMines (char _board[N_ROWS][N_COLUMNS], int row, int column) {
+// Check if coordinate is out of board
+bool outOfBoard (int row, int column) {
+	return (row < 0 || row >= N_ROWS || column < 0 || column >= N_COLUMNS);
+}
+
+// Initialize boards
+void initBoard (char hidden[N_ROWS][N_COLUMNS], char display[N_ROWS][N_COLUMNS]) {
+	REP(i, N_ROWS)
+		REP(j, N_COLUMNS) {
+			hidden[i][j] = CELL_ZERO;
+			display[i][j] = CELL_FREE;
+		}
+}
+
+// Return the number of mines around a cell
+char countMines (char board[N_ROWS][N_COLUMNS], int row, int column) {
 	char mines = 0;	// Count the number of mines around the square
 
-	// The boundaries between the mines around the cell
-	int max_row = row + 1; 			// Row under the cell
-	int min_row = row - 1;			// Row above the cell
-	int min_column = column - 1;	// Column to the left of the cell
-	int max_column = column + 1;	// Column to the right of the cell
+	FORU(i, row - 1, row + 1)
+		FORU(j, column - 1, column + 1)
+			if (!outOfBoard(i, j))
+				mines += (board[i][j] == CELL_MINE);
 
-	// If the cell is on the edges of the board, then the limits must be modified
-	// so as not to go off the board
-	if (row == 0) min_row = 0;
-	else if (row == N_ROWS - 1) max_row = N_ROWS - 1;
-	if (column == 0) min_column = 0;
-	else if (column == N_COLUMNS - 1) max_column = N_COLUMNS - 1;
-
-	// Count mines around this cell
-	FORU(i, min_row, max_row)
-		FORU(j, min_column, max_column)
-			mines += (_board[i][j] == CELL_MINE);
-
-	// Return the number of mines around the cell
 	return mines;
 }
 
-// Return the number of flagged cells around a cell coordinates (row, column)
-char countFlags (char _board[N_ROWS][N_COLUMNS], int row, int column) {
+// Put mines and numbers
+void genBoard (int _row, int _column, char board[N_ROWS][N_COLUMNS]) {
+	std::vector <std::pair<int, int>> cellList; // List of free cells
+
+	REP(i, N_ROWS)
+		REP(j, N_COLUMNS)
+			cellList.push_back(std::make_pair(i, j));
+
+	REP(k, N_MINES) {
+		// Randomize a cell
+		int rd_cell = rnd->get(0, cellList.size() - 1);
+
+		int row = cellList[rd_cell].first;
+		int column = cellList[rd_cell].second;
+
+		// If this cell is not the first clicked cell, then put a mine there
+		if (row != _row || column != _column) {
+			board[row][column] = CELL_MINE;
+			cellList.erase(cellList.begin() + rd_cell);
+		}
+	}
+
+	REP(i, N_ROWS)
+		REP(j, N_COLUMNS)
+			if (board[i][j] != CELL_MINE)
+				board[i][j] = countMines(board, i, j) + CELL_ZERO;
+}
+
+// Return the number of flagged cells around a cell
+char countFlags (char board[N_ROWS][N_COLUMNS], int row, int column) {
 	char flags = 0;	// Count the number of flags around the square
 
-	// The boundaries between the flags around the cell
-	int max_row = row + 1; 			// Row under the cell
-	int min_row = row - 1;			// Row above the cell
-	int min_column = column - 1;	// Column to the left of the cell
-	int max_column = column + 1;	// Column to the right of the cell
-
-	// If the cell is on the edges of the board, then the limits must be modified
-	// so as not to go off the board
-	if (row == 0) min_row = 0;
-	else if (row == N_ROWS - 1) max_row = N_ROWS - 1;
-	if (column == 0) min_column = 0;
-	else if (column == N_COLUMNS - 1) max_column = N_COLUMNS - 1;
-
 	// Count flags around this cell
-	FORU(i, min_row, max_row)
-		FORU(j, min_column, max_column)
-			flags += (_board[i][j] == CELL_FLAGGED);
+	FORU(i, row - 1, row + 1)
+		FORU(j, column - 1, column + 1)
+			if (!outOfBoard(i, j))
+				flags += (board[i][j] == CELL_FLAGGED);
 
 	// Return the number of flags around the cell
 	return flags;
 }
 
-// In each cell of the board where there is no mine, put the number of mines around it
-void putNumber (char _board[N_ROWS][N_COLUMNS]) {
-	REP(i, N_ROWS)
-		REP(j, N_COLUMNS)
-			if (_board[i][j] != CELL_MINE)
-				_board[i][j] = countMines(_board, i, j) + CELL_ZERO;
-}
-
-// Flip the cells that are necessary after clicking on a cell and return the number of flipped cells
-int flip (char _board[N_ROWS][N_COLUMNS], char game_board[N_ROWS][N_COLUMNS], int row, int column, bool* exploded = NULL) {
-	if (game_board[row][column] == CELL_FREE && _board[row][column] == CELL_MINE) {
-		game_board[row][column] = CELL_EXPLODED;
-		if (exploded != NULL)
-			*exploded = true;
+// Flip the cells and return the number of flipped cells
+int flip (char hidden[N_ROWS][N_COLUMNS], char display[N_ROWS][N_COLUMNS], int row, int column) {
+	if (display[row][column] == CELL_FREE && hidden[row][column] == CELL_MINE) {
+		display[row][column] = CELL_EXPLODED;
+		exploded = true;
 	}
-	if (game_board[row][column] != CELL_FREE) {
-		if (CELL_ONE <= game_board[row][column] && game_board[row][column] <= CELL_EIGHT
-			&& countFlags(game_board, row, column) == game_board[row][column] - CELL_ZERO)
-			return flip_all_adjacent(_board, game_board, row, column, exploded);
+	if (display[row][column] != CELL_FREE) {
+		if (isNumber(display[row][column]) && countFlags(display, row, column) == display[row][column] - CELL_ZERO)
+			return flip_adj(hidden, display, row, column);
 		else
 			return 0;	// If the cell was already flipped, no cells are flipped
 	}
 	else {
-		// The cell on the game's board is flipped, then show what was hidden in it
-		game_board[row][column] = _board[row][column];
+		// This cell is flipped, then show it
+		display[row][column] = hidden[row][column];
 
-		if (game_board[row][column] != CELL_ZERO)
-			return 1;	// If the cell was not CELL_ZERO, only this cell is flipped
+		if (display[row][column] != CELL_ZERO)
+			return 1;	// If this cell was not CELL_ZERO, then only this cell is flipped
 		else {
-			// Number of flipped cells
+			// Number of flipped cells (initialize as 1 included this cell!)
 			int flipped_cells = 1;
 
-			// The boundaries between the mines around the cell
-			int max_row = row + 1; 			// Row under the cell
-			int min_row = row - 1;			// Row above the cell
-			int min_column = column - 1;	// Column to the left of the cell
-			int max_column = column + 1;	// Column to the right of the cell
-
-			// If the cell is on the edges of the board, then the limits must be modified
-			// so as not to go off the board
-			if (row == 0) min_row = 0;
-			else if (row == N_ROWS - 1) max_row = N_ROWS - 1;
-			if (column == 0) min_column = 0;
-			else if (column == N_COLUMNS - 1) max_column = N_COLUMNS - 1;
-
 			// Recursive flip all cells around it
-			FORU(i, min_row, max_row)
-				FORU(j, min_column, max_column)
-					if (i != row || j != column)
-						flipped_cells += flip(_board, game_board, i, j, exploded);
+			FORU(i, row - 1, row + 1)
+				FORU(j, column - 1, column + 1)
+					if (!outOfBoard(i, j) && (i != row || j != column))
+						flipped_cells += flip(hidden, display, i, j);
 
-			return flipped_cells;	// If the cell was CELL_ZERO, more than one cell has been flipped
+			return flipped_cells;	// If the cell was CELL_ZERO, then more than one cell has been flipped
 		}
 	}
 }
 
 // Flip all adjacent cells if all flags are put around it is the same as the number inside this cell
-int flip_all_adjacent (char _board[N_ROWS][N_COLUMNS], char game_board[N_ROWS][N_COLUMNS],
-						int row, int column, bool* exploded = NULL) {
-	if (game_board[row][column] == CELL_FREE && _board[row][column] == CELL_MINE) {
-		game_board[row][column] = CELL_EXPLODED;
-		if (exploded != NULL)
-			*exploded = true;
+int flip_adj (char hidden[N_ROWS][N_COLUMNS], char display[N_ROWS][N_COLUMNS], int row, int column) {
+	if (display[row][column] == CELL_FREE && display[row][column] == CELL_MINE) {
+		display[row][column] = CELL_EXPLODED;
+		exploded = true;
 	}
 	// Number of flipped cells
 	int flipped_cells = 0;
 
-	// The boundaries between the mines around the cell
-	int max_row = row + 1; 			// Row under the cell
-	int min_row = row - 1;			// Row above the cell
-	int min_column = column - 1;	// Column to the left of the cell
-	int max_column = column + 1;	// Column to the right of the cell
-
-	// If the cell is on the edges of the board, then the limits must be modified
-	// so as not to go off the board
-	if (row == 0) min_row = 0;
-	else if (row == N_ROWS - 1) max_row = N_ROWS - 1;
-	if (column == 0) min_column = 0;
-	else if (column == N_COLUMNS - 1) max_column = N_COLUMNS - 1;
-
 	// Recursive flip all cells around it
-	FORU(i, min_row, max_row)
-		FORU(j, min_column, max_column)
-			if ((i != row || j != column) && game_board[i][j] == CELL_FREE)
-				flipped_cells += flip(_board, game_board, i, j, exploded);
+	FORU(i, row - 1, row + 1)
+		FORU(j, column - 1, column + 1)
+			if (!outOfBoard(i, j) && (i != row || j != column) && display[i][j] == CELL_FREE)
+				flipped_cells += flip(hidden, display, i, j);
 
 	return flipped_cells;
 }
 
-// Check which type of cell and which button has been clicked and act accordingly
-void play (char _board[N_ROWS][N_COLUMNS], char game_board[N_ROWS][N_COLUMNS], int* free_cells,
-		   bool* game_over, bool mouseL, bool mouseR, int cell_y, int cell_x) {
-	// If the left mouse button has been clicked
+// Act depending on type of cell and clicked button
+void play (char hidden[N_ROWS][N_COLUMNS], char display[N_ROWS][N_COLUMNS], int& unknown_cells, int row, int column) {
+	// Flip cell using left mouse
 	if (mouseL) {
-		bool* exploded = new bool;
-		*exploded = false;
-		*free_cells -= flip(_board, game_board, cell_y, cell_x, exploded);
-		if (*exploded)
-			*game_over = true;	// You lost because you flipped a mine!
+		unknown_cells -= flip(hidden, display, row, column);
 	}
 
-	// If the right mouse button has been clicked
+	// Mark as flag or remove flag using right mouse
 	if (mouseR) {
-		if (game_board[cell_y][cell_x] == CELL_FREE)
-			game_board[cell_y][cell_x] = CELL_FLAGGED;
-		else if (game_board[cell_y][cell_x] == CELL_FLAGGED)
-			game_board[cell_y][cell_x] = CELL_FREE;
+		char& cell = display[row][column];
+		cell = (cell == CELL_FLAGGED ? CELL_FREE : (cell == CELL_FREE ? CELL_FLAGGED : cell));
 	}
 
 	// If you have lost, the rest of the hidden mines are flipped
-	if (*game_over)
+	if (exploded)
 		REP(i, N_ROWS)
-			REP(j, N_COLUMNS)
-				if (game_board[i][j] != CELL_EXPLODED && _board[i][j] == CELL_MINE)
-					game_board[i][j] = CELL_MINE;
+			REP(j, N_COLUMNS) {
+				if (display[i][j] == CELL_FREE && hidden[i][j] == CELL_MINE)
+					display[i][j] = CELL_MINE;
+				if (display[i][j] == CELL_FLAGGED && isNumber(hidden[i][j]))
+					display[i][j] = CELL_WRONG_FLAGGED;
+			}
+}
+
+// Show message when game ends
+void showMessage (bool exp) {
+	// Create message string
+	std::stringstream msg;
+	msg.setf(std::ios::fixed, std::ios::floatfield);
+	msg.precision(3);
+	msg << "You " << (exp ? "lose" : "win") << "! Time: " << (double) (end_time - start_time) / CLOCKS_PER_SEC << " s";
+
+	bool quit = false;
+
+    TTF_Init();
+
+    // Show message
+    SDL_Window* window = SDL_CreateWindow(MESSAGE_TITLE, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, MESSAGE_WIDTH, MESSAGE_HEIGHT, SDL_WINDOW_ALLOW_HIGHDPI);
+    SDL_Renderer* renderer = SDL_CreateRenderer(window, -1, 0);
+    SDL_SetWindowIcon(window, window_icon);
+
+    TTF_Font* font = TTF_OpenFont("res/times.ttf", MESSAGE_FONTSIZE);
+    SDL_Color color[2] = {{63, 72, 204}, {255, 255, 255}};
+    SDL_Color bg[2] = {{0, 255, 0, 255}, {237, 28, 36, 255}};
+
+    SDL_SetRenderDrawColor(renderer, bg[exp].r, bg[exp].g, bg[exp].b, bg[exp].a);
+    SDL_RenderClear(renderer);
+
+    SDL_Surface* surface = TTF_RenderText_Blended(font, msg.str().c_str(), color[exp]);
+    SDL_Texture* texture = SDL_CreateTextureFromSurface(renderer, surface);
+
+    int msgW = MESSAGE_WIDTH;
+    int msgH = MESSAGE_HEIGHT;
+    SDL_QueryTexture(texture, NULL, NULL, &msgW, &msgH);
+    SDL_Rect dstrect = {0, 0, msgW, msgH};
+
+	SDL_RenderCopy(renderer, texture, NULL, &dstrect);
+	SDL_RenderPresent(renderer);
+
+    while (!quit)
+		while (SDL_PollEvent(&events) != 0)
+			quit = (events.window.event == SDL_WINDOWEVENT_CLOSE);
+
+	// Free SDL
+
+    SDL_DestroyTexture(texture);
+    SDL_FreeSurface(surface);
+    TTF_CloseFont(font);
+    SDL_DestroyRenderer(renderer);
+    SDL_DestroyWindow(window);
+    TTF_Quit();
 }
 
 int main (int argc, char** argv) {
-	char _board[N_ROWS][N_COLUMNS];	// Hidden board in which the positions of the mines will be stored
-	char game_board[N_ROWS][N_COLUMNS];	// Board shown to the player on the screen
+	char hidden_board[N_ROWS][N_COLUMNS], display_board[N_ROWS][N_COLUMNS]; // Board of game
+	int unknown_cells; // Number of cell which has not been flipped
 
-	int mouse_x, mouse_y;	// Position of the pointer in pixels
-	int cell_x, cell_y;		// Position of the pointer in cells
-	int free_cells;			// Number of free cells
+	// At least one of the mouse button must be initialize as true so the game can play
+	mouseL = true; mouseR = quit = false;
 
-	bool mouseL = true;
-	bool mouseR = true;
-	bool game_over = false;
-	bool quit = false;
-
-	// All possible status in which the game can be found
-	GameStatus game_status = INITIALIZING_BOARD;
-
-	// Position of the surface where the message of won or lost will be drawn
-	SDL_Rect msg_rect;
-	msg_rect.x = SCREEN_WIDTH / 2 - MESSAGE_WIDTH / 2;
-	msg_rect.y = SCREEN_HEIGHT / 2 - MESSAGE_HEIGHT / 2;
-	msg_rect.w = MESSAGE_WIDTH;
-	msg_rect.h = MESSAGE_HEIGHT;
+	GameStatus game_status = WAITING;
 
 	initSDL();
 
@@ -358,58 +340,48 @@ int main (int argc, char** argv) {
 
 	SDL_SetWindowIcon(window, window_icon);
 
-	// Infinite loop until user quit the game
+	// Infinite loop until user exit the game
 	while (!quit) {
-		handleEvents(&quit, &mouseL, &mouseR, &mouse_x, &mouse_y);
-		cell_x = mouse_x / CELL_SIZE;
-		cell_y = mouse_y / CELL_SIZE;
+		catchEvents();
 
-		if (mouseL || mouseR || game_over || free_cells == N_MINES) {
-			switch (game_status) {
-				case INITIALIZING_BOARD:
-					initBoard(_board, game_board);
-					drawBoard(game_board);
-					free_cells = N_COLUMNS * N_ROWS;
-					game_status = GENERATING_MINES;
-					break;
+		if (mouseL || mouseR || exploded || unknown_cells == N_MINES) {
+			int row = mY / CELL_SIZE;
+			int column = mX / CELL_SIZE;
 
-				case GENERATING_MINES:
-					putMines(cell_x, cell_y, _board);
-					putNumber(_board);
-					free_cells -= flip(_board, game_board, cell_y, cell_x);
-					drawBoard(game_board);
-					game_status = PLAYING_GAME;
-					break;
-
-				case PLAYING_GAME:
-					if (free_cells > N_MINES && !game_over) {
-						play(_board, game_board, &free_cells, &game_over,
-							 mouseL, mouseR, cell_y, cell_x);
-						drawBoard(game_board);
-					}
-					if (free_cells == N_MINES || game_over)
-						game_status = ENDING_GAME;
-					break;
-
-				case ENDING_GAME:
-					if (game_over) {
-						SDL_BlitSurface(resources[GAME_LOSE], NULL, window_surface, &msg_rect);
-						game_over = false;
-					}
-					else {
-						SDL_BlitSurface(resources[GAME_WIN], NULL, window_surface, &msg_rect);
-						--free_cells;
-					}
-					SDL_UpdateWindowSurface(window);
-					game_status = INITIALIZING_BOARD;
-					break;
+			if (game_status == WAITING) {
+				initBoard(hidden_board, display_board);
+				drawBoard(display_board);
+				unknown_cells = N_COLUMNS * N_ROWS;
+				game_status = GENERATING;
 			}
+			else if (game_status == GENERATING) {
+				genBoard(row, column, hidden_board);
+				start_time = clock();
+				unknown_cells -= flip(hidden_board, display_board, row, column);
+				drawBoard(display_board);
+				game_status = PLAYING;
+			}
+			else if (game_status == PLAYING) {
+				if (unknown_cells > N_MINES && !exploded) {
+					play(hidden_board, display_board, unknown_cells, row, column);
+					drawBoard(display_board);
+				}
+				else
+					game_status = FINISHED;
+			}
+			else if (game_status == FINISHED) {
+				end_time = clock();
+				showMessage(exploded);
 
-			mouseL = false;
-			mouseR = false;
+				if (exploded) exploded = false;
+				else --unknown_cells;
+
+				game_status = WAITING;
+			}
+			mouseL = mouseR = false;
 		}
 
-		SDL_Delay(50);
+		SDL_Delay(27); // Just my lucky value: 4 + 8 + 6 + 9 :))
 	}
 
 	freeSDL();

@@ -1,11 +1,16 @@
 /*
  * +-----------------------------------------------+
- * | Project:	  Minesweeper					   |
- * | File:		  winmine.hpp					   |
- * | Author:	  Pham Thanh Tung				   |
- * | Student ID:  17020042						   |
- * | Class:		  QH - 2017 - I / CQ - C - A - C   |
+ * | Project:     Minesweeper                      |
+ * | Author:      Pham Thanh Tung                  |
+ * | Student ID:  17020042                         |
+ * | Class:       QH - 2017 - I / CQ - C - A - C   |
  * +-----------------------------------------------+
+ */
+
+/**
+ * @file winmine.hpp
+ * @author Tung Pham Thanh
+ * @brief This is a header file for game core
  */
 
 #ifndef WINMINE_HPP_INCLUDED
@@ -13,8 +18,11 @@
 
 #include <string>
 #include <SDL2/SDL.h>
+#include <SDL2/SDL_image.h>
+#include <SDL2/SDL_ttf.h>
 
-#define GAME_TITLE "Minesweeper"
+#define TITLE "Minesweeper"
+#define MESSAGE_TITLE "Statistic"
 #define FORU(i, a, b) for (int i = (a); i <= (b); ++i)
 #define REP(i, n) for (int i = 0; i < (n); ++i)
 
@@ -23,13 +31,14 @@
 const int N_ROWS			= 16;						// Number of board rows
 const int N_COLUMNS 		= 30;						// Number of board columns
 const int N_MINES 			= 99;						// Number of board mines
-const int CELL_SIZE			= 30;						// Size of cell (calc. in pixels)
-const int SCREEN_HEIGHT		= CELL_SIZE * N_ROWS;		// Height of the window (calc. in pixels)
-const int SCREEN_WIDTH		= CELL_SIZE * N_COLUMNS;	// Width of the window (calc. in pixels)
-const int MESSAGE_HEIGHT 	= 120;						// Height of the message (calc. in pixels)
-const int MESSAGE_WIDTH 	= 540;						// Width of the message (calc. in pixels)
+const int CELL_SIZE			= 16;						// Size of cell (calc. in pixels)
+const int LAYER_HEIGHT		= CELL_SIZE * N_ROWS;		// Height of the layer (calc. in pixels)
+const int LAYER_WIDTH		= CELL_SIZE * N_COLUMNS;	// Width of the layer (calc. in pixels)
+const int MESSAGE_HEIGHT 	= 50;						// Height of the message (calc. in pixels)
+const int MESSAGE_WIDTH 	= 400;						// Width of the message (calc. in pixels)
+const int MESSAGE_FONTSIZE 	= 30;						// Font size of the message
 
-const int N_RES = 15;
+const int N_RES = 14;
 
 enum ResourceID {
 	CELL_FREE,
@@ -45,59 +54,147 @@ enum ResourceID {
 	CELL_SEVEN,
 	CELL_EIGHT,
 	CELL_EXPLODED,
-	GAME_WIN,
-	GAME_LOSE
+	CELL_WRONG_FLAGGED
 };
 
 enum GameStatus {
-	INITIALIZING_BOARD,
-	GENERATING_MINES,
-	PLAYING_GAME,
-	ENDING_GAME
+	WAITING,
+	GENERATING,
+	PLAYING,
+	FINISHED
 };
 
-// Initialize SDL and create window for game
+/**
+ * @brief Initialize SDL, create window and layer
+ */
+
 void initSDL (void);
 
-// Load the image of the specified path and optimize the surface
-// so that the subsequent blits are faster
-SDL_Surface* getResource (int);
+/**
+ * @brief Load an image
+ * @param[in] id The ID of resource
+ * @return A pointer to SDL_Surface which contains image
+ */
 
-// Load all necessary images for game
+SDL_Surface* getResource (int id);
+
+/**
+ * @brief Load all necessary images for game
+ */
+
 void loadImages (void);
 
-// Free memory of SDL
+/**
+ * @brief Free memory of SDL
+ */
+
 void freeSDL (void);
 
-// Initialize the two boards
-void initBoard (char[N_ROWS][N_COLUMNS], char[N_ROWS][N_COLUMNS]);
+/**
+ * @brief Draw board to layer
+ * @param[in] board An array of data to draw to layer
+ */
 
-// Displays the player's board
-void drawBoard (char[N_ROWS][N_COLUMNS]);
+void drawBoard (char board[N_ROWS][N_COLUMNS]);
 
-// Handle the events that are queued to check if the X in the window has been clicked
-// or if a mouse button has been clicked
-void handleEvents (bool*, bool*, bool*, int*, int*);
+/**
+ * @brief Catch in-game events
+ */
 
-// Put mines on the hidden board by distributing them randomly
-void putMines (int, int, char[N_ROWS][N_COLUMNS]);
+void catchEvents (void);
 
-// Return the number of mines around a cell coordinates (row, column)
-char countMines (char[N_ROWS][N_COLUMNS], int, int);
+/**
+ * @brief Check if a value is number
+ * @param[in] value A value to check whether it is a number cell
+ * @return A boolean value, true if it is a number
+ */
 
-// Return the number of flagged cells around a cell coordinates (row, column)
-char countFlags (char[N_ROWS][N_COLUMNS], int, int);
+bool isNumber (char value);
 
-// In each cell of the board where there is no mine, put the number of mines around it
-void putNumber (char[N_ROWS][N_COLUMNS]);
+/**
+ * @brief Check if coordinate is out of board
+ * @param[in] row Row of cell
+ * @param[in] column Column of cell
+ * @return A boolean value, true if this cell is out of board
+ */
 
-// Flip the cells that are necessary after clicking on a cell and return the number of flipped cells
-int flip (char[N_ROWS][N_COLUMNS], char[N_ROWS][N_COLUMNS], int, int, bool*);
+bool outOfBoard (int row, int column);
 
-// Flip all adjacent cells if all flags are put around it is the same as the number inside this cell
-int flip_all_adjacent (char[N_ROWS][N_COLUMNS], char[N_ROWS][N_COLUMNS], int, int, bool*);
+/**
+ * @brief Initialize boards
+ * @param[out] hidden The hidden board, contains data of current game
+ * @param[out] display The board to show player
+ */
 
-// Check which type of cell and which button has been clicked and act accordingly
-void play (char[N_ROWS][N_COLUMNS], char[N_ROWS][N_COLUMNS], int*, bool*, bool, bool, int, int);
+void initBoard (char hidden[N_ROWS][N_COLUMNS], char display[N_ROWS][N_COLUMNS]);
+
+/**
+ * @brief Return the number of mines around a cell
+ * @param[in] board The board which contains this cell
+ * @param[in] row Row of cell
+ * @param[in] column Column of cell
+ * @return Number of mines around this cell
+ */
+
+char countMines (char board[N_ROWS][N_COLUMNS], int row, int column);
+
+/**
+ * @brief Put mines and numbers
+ * @param[in] _row Row of the first clicked cell
+ * @param[in] _column Column of the first clicked cell
+ * @param[out] board Board to put mines and numbers in
+ */
+
+void genBoard (int _row, int _column, char board[N_ROWS][N_COLUMNS]);
+
+/**
+ * @brief Return the number of flagged cells around a cell
+ * @param[in] board The board which contains this cell
+ * @param[in] row Row of cell
+ * @param[in] column Column of cell
+ * @return Number of flags have been put around it
+ */
+
+char countFlags (char board[N_ROWS][N_COLUMNS], int row, int column);
+
+/**
+ * @brief Flip the cells and return the number of flipped cells
+ * @param[in] hidden The hidden board, contains data of current game
+ * @param[in] display The board to show player
+ * @param[in] row Row of the clicked cell
+ * @param[in] column Column of the clicked cell
+ * @return Number of cells have been flipped
+ */
+
+int flip (char hidden[N_ROWS][N_COLUMNS], char display[N_ROWS][N_COLUMNS], int row, int column);
+
+/**
+ * @brief Flip all adjacent cells if all flags are put around it is the same as the number inside this cell
+ * @param[in] hidden The hidden board, contains data of current game
+ * @param[in] display The board to show player
+ * @param[in] row Row of the clicked cell
+ * @param[in] column Column of the clicked cell
+ * @return Number of cells have been flipped
+ */
+
+int flip_adj (char hidden[N_ROWS][N_COLUMNS], char display[N_ROWS][N_COLUMNS], int row, int column);
+
+/**
+ * @brief Act depending on type of cell and clicked button
+ * @param[in] hidden The hidden board, contains data of current game
+ * @param[in] display The board to show player
+ * @param[out] unknown_cells Number of cells which have not been flipped
+ * @param[in] row Row of the clicked cell
+ * @param[in] column Column of the clicked cell
+ */
+
+void play (char hidden[N_ROWS][N_COLUMNS], char display[N_ROWS][N_COLUMNS], int& unknown_cells, int row, int column);
+
+/**
+ * @brief Show message when game ends
+ * @param[in] exp True if a mine has been clicked and exploded
+ */
+
+void showMessage (bool exp);
 
 #endif // WINMINE_HPP_INCLUDED

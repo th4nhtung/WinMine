@@ -694,21 +694,35 @@
 	"begin_code.h"
 	"close_code.h"
 
-1557110977 c:\users\admin\documents\winmine\random.hpp
+1557765121 c:\users\admin\documents\winmine\random.hpp
 	<random>
 	<chrono>
 
-1557110977 source:c:\users\admin\documents\winmine\random.cpp
+1557722336 source:c:\users\admin\documents\winmine\random.cpp
 	"random.hpp"
 
-1557715641 source:c:\users\admin\documents\winmine\winmine.cpp
+1557766662 source:c:\users\admin\documents\winmine\winmine.cpp
 	"winmine.hpp"
 	"random.hpp"
 	<iostream>
 	<sstream>
-	<SDL2/SDL.h>
+	<utility>
+	<vector>
 
-1557713441 c:\users\admin\documents\winmine\winmine.hpp
+1557766662 c:\users\admin\documents\winmine\winmine.hpp
 	<string>
 	<SDL2/SDL.h>
+	<SDL2/SDL_image.h>
+	<SDL2/SDL_ttf.h>
+
+1540998002 c:\users\admin\x86_64-w64-mingw32\include\sdl2\sdl_image.h
+	"SDL.h"
+	"SDL_version.h"
+	"begin_code.h"
+	"close_code.h"
+
+1547322290 c:\users\admin\x86_64-w64-mingw32\include\sdl2\sdl_ttf.h
+	"SDL.h"
+	"begin_code.h"
+	"close_code.h"
 

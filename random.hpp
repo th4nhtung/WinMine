@@ -1,11 +1,16 @@
 /*
  * +-----------------------------------------------+
- * | Project:	  Minesweeper					   |
- * | File:		  random.hpp					   |
- * | Author:	  Pham Thanh Tung				   |
- * | Student ID:  17020042						   |
- * | Class:		  QH - 2017 - I / CQ - C - A - C   |
+ * | Project:     Minesweeper                      |
+ * | Author:      Pham Thanh Tung                  |
+ * | Student ID:  17020042                         |
+ * | Class:       QH - 2017 - I / CQ - C - A - C   |
  * +-----------------------------------------------+
+ */
+
+/**
+ * @file random.hpp
+ * @author Tung Pham Thanh
+ * @brief This is a header file for Random class
  */
 
 #ifndef RANDOM_HPP_INCLUDED
@@ -21,8 +26,26 @@ private:
 	std::uniform_int_distribution<int> distribution;
 
 public:
-	Random();
-	int get (int, int);
+	/**
+	 * @brief Construct, initialize seed and generator
+	 */
+
+	Random() {
+		this->seed = std::chrono::system_clock::now().time_since_epoch().count();
+		this->generator = std::default_random_engine(this->seed);
+	}
+
+	/**
+	 * @brief Get a random integer in range [low, high], including both \a low and \a high
+	 * @param[in] low Lower bound of range
+	 * @param[in] high Upper bound of range
+	 * @return A random integer in range [low, high]
+	 */
+
+	int get (int low, int high) {
+		this->distribution = std::uniform_int_distribution<int>(low, high);
+		return this->distribution(this->generator);
+	}
 };
 
 #endif // RANDOM_HPP_INCLUDED
